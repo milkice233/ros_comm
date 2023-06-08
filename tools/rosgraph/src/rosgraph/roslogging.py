@@ -55,20 +55,19 @@ class RospyLogger(logging.getLoggerClass()):
         Find the stack frame of the caller so that we can note the source
         file name, line number, and function name with class name if possible.
         """
-        file_name, lineno, func_name = super(RospyLogger, self).findCaller(*args, **kwargs)[:3]
-        file_name = os.path.normcase(file_name)
-
-        f = inspect.currentframe()
-        if f is not None:
+       f = inspect.currentframe()
+        while f.f_back:
             f = f.f_back
-        while hasattr(f, "f_code"):
-            # Search for the right frame using the data already found by parent class.
-            co = f.f_code
-            filename = os.path.normcase(co.co_filename)
-            if filename == file_name and f.f_lineno == lineno and co.co_name == func_name:
+            # Get locals from f_locals
+            f_class = f.f_locals.get('self', None)
+            if not f_class:
+                # Just continue first
+                continue 
+            if f_class.__class__ is not RospyLogger:
+                # Skip RospyLogger
                 break
-            if f.f_back:
-                f = f.f_back
+        co = f.f_code
+        func_name = co.co_name
 
         # Jump up two more frames, as the logger methods have been double wrapped.
         if f is not None and f.f_back and f.f_code and f.f_code.co_name == '_base_logger':
